@@ -19,7 +19,7 @@ Two-way synchronization between ERPNext Projects and Jira Cloud.
 
 ```bash
 cd ~/frappe-bench
-bench get-app /path/to/jira_sync   # or your git remote
+bench get-app https://github.com/mutuasm/jira-sync.git
 bench --site yoursite.local install-app jira_sync
 bench --site yoursite.local migrate
 bench restart
