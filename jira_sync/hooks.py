@@ -1,8 +1,8 @@
 app_name = "jira_sync"
 app_title = "Jira Sync"
-app_publisher = "Your Company"
+app_publisher = "Steve Mutua"
 app_description = "Two-way sync between ERPNext Projects and Jira"
-app_email = "dev@example.com"
+app_email = "smutua@dimetechgroup.com"
 app_license = "MIT"
 
 # Create custom fields (jira keys/ids on Project, Task, Timesheet Detail, Comment)
