@@ -1,0 +1,16 @@
+{
+ "doctype": "DocType",
+ "name": "Jira Project Mapping",
+ "module": "Jira Sync",
+ "istable": 1,
+ "engine": "InnoDB",
+ "field_order": ["erpnext_project", "jira_project_key", "jira_project_id"],
+ "fields": [
+  {"fieldname": "erpnext_project", "fieldtype": "Link", "label": "ERPNext Project", "options": "Project", "in_list_view": 1, "reqd": 1},
+  {"fieldname": "jira_project_key", "fieldtype": "Data", "label": "Jira Project Key", "in_list_view": 1, "reqd": 1},
+  {"fieldname": "jira_project_id", "fieldtype": "Data", "label": "Jira Project ID", "in_list_view": 1}
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

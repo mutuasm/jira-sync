@@ -1,0 +1,15 @@
+{
+ "doctype": "DocType",
+ "name": "Jira Status Mapping",
+ "module": "Jira Sync",
+ "istable": 1,
+ "engine": "InnoDB",
+ "field_order": ["jira_status", "task_status"],
+ "fields": [
+  {"fieldname": "jira_status", "fieldtype": "Data", "label": "Jira Status", "in_list_view": 1, "reqd": 1},
+  {"fieldname": "task_status", "fieldtype": "Select", "label": "ERPNext Task Status", "options": "Open\nWorking\nPending Review\nOverdue\nTemplate\nCompleted\nCancelled", "in_list_view": 1, "reqd": 1}
+ ],
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}

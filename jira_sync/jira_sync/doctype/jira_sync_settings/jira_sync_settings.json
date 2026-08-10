@@ -1,0 +1,51 @@
+{
+ "doctype": "DocType",
+ "name": "Jira Sync Settings",
+ "module": "Jira Sync",
+ "issingle": 1,
+ "custom": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "jira_section",
+  "jira_url",
+  "jira_user_email",
+  "api_token",
+  "jira_account_id",
+  "webhook_section",
+  "webhook_secret",
+  "sync_section",
+  "sync_projects",
+  "sync_tasks",
+  "sync_timesheets",
+  "sync_comments",
+  "default_issue_type",
+  "mappings_section",
+  "project_mappings",
+  "status_mappings"
+ ],
+ "fields": [
+  {"fieldname": "enabled", "fieldtype": "Check", "label": "Enabled", "default": "0"},
+  {"fieldname": "jira_section", "fieldtype": "Section Break", "label": "Jira Connection"},
+  {"fieldname": "jira_url", "fieldtype": "Data", "label": "Jira URL", "description": "e.g. https://yourcompany.atlassian.net", "reqd": 1},
+  {"fieldname": "jira_user_email", "fieldtype": "Data", "label": "Jira User Email", "reqd": 1},
+  {"fieldname": "api_token", "fieldtype": "Password", "label": "API Token", "reqd": 1},
+  {"fieldname": "jira_account_id", "fieldtype": "Data", "label": "Integration Account ID", "read_only": 1, "description": "Auto-detected. Webhook events by this account are ignored to prevent loops."},
+  {"fieldname": "webhook_section", "fieldtype": "Section Break", "label": "Webhook"},
+  {"fieldname": "webhook_secret", "fieldtype": "Password", "label": "Webhook Secret", "description": "Append as ?secret=... to the webhook URL registered in Jira"},
+  {"fieldname": "sync_section", "fieldtype": "Section Break", "label": "Sync Options"},
+  {"fieldname": "sync_projects", "fieldtype": "Check", "label": "Sync Projects", "default": "1"},
+  {"fieldname": "sync_tasks", "fieldtype": "Check", "label": "Sync Tasks / Issues", "default": "1"},
+  {"fieldname": "sync_timesheets", "fieldtype": "Check", "label": "Sync Time Logs / Worklogs", "default": "1"},
+  {"fieldname": "sync_comments", "fieldtype": "Check", "label": "Sync Comments", "default": "1"},
+  {"fieldname": "default_issue_type", "fieldtype": "Data", "label": "Default Jira Issue Type", "default": "Task"},
+  {"fieldname": "mappings_section", "fieldtype": "Section Break", "label": "Mappings"},
+  {"fieldname": "project_mappings", "fieldtype": "Table", "label": "Project Mappings", "options": "Jira Project Mapping"},
+  {"fieldname": "status_mappings", "fieldtype": "Table", "label": "Status Mappings", "options": "Jira Status Mapping"}
+ ],
+ "permissions": [
+  {"role": "System Manager", "read": 1, "write": 1, "create": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC"
+}
