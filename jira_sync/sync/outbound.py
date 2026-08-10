@@ -95,6 +95,9 @@ def push_new_task(task):
         target = utils.jira_status_for_task_status(doc.status)
         if target:
             client.transition_issue(issue.get("key"), target)
+    # push anyone already assigned (their ToDo events predate the Jira link)
+    if utils.task_assignees(doc.name):
+        push_task_assignee(doc.name)
 
 
 def task_on_update(doc, method=None):
@@ -141,6 +144,58 @@ def push_task_update(task, changed=None, status=None):
     frappe.db.set_value(
         "Task", doc.name, "jira_last_synced", frappe.utils.now(), update_modified=False
     )
+
+
+# ---------------------------------------------------------------------------
+# Assignments (ToDo) -> Jira assignee
+# ---------------------------------------------------------------------------
+def todo_after_insert(doc, method=None):
+    _todo_changed(doc)
+
+
+def todo_on_update(doc, method=None):
+    _todo_changed(doc)
+
+
+def todo_on_trash(doc, method=None):
+    _todo_changed(doc)
+
+
+def _todo_changed(doc):
+    if utils.in_inbound_sync() or not utils.sync_enabled("sync_tasks"):
+        return
+    if doc.reference_type != "Task" or not doc.reference_name:
+        return
+    if not frappe.db.get_value("Task", doc.reference_name, "jira_issue_key"):
+        return
+    _enqueue("jira_sync.sync.outbound.push_task_assignee", task=doc.reference_name)
+
+
+def push_task_assignee(task):
+    row = frappe.db.get_value(
+        "Task", task, ["jira_issue_key", "_assign"], as_dict=True
+    )
+    if not row or not row.jira_issue_key:
+        return
+    assigned = frappe.parse_json(row._assign or "[]")
+    client = JiraClient()
+    account_id = None
+    if assigned:
+        # Jira holds a single assignee; mirror the most recent assignment
+        for user in reversed(assigned):
+            email = frappe.db.get_value("User", user, "email") or user
+            account_id = client.get_account_id_for_email(email)
+            if account_id:
+                break
+        if not account_id:
+            return  # nobody assigned locally has a Jira account; don't unassign
+    try:
+        client.assign_issue(row.jira_issue_key, account_id)
+        frappe.db.set_value(
+            "Task", task, "jira_last_synced", frappe.utils.now(), update_modified=False
+        )
+    except Exception:
+        frappe.log_error(title=f"Jira assignee push failed: {task}")
 
 
 def task_on_trash(doc, method=None):

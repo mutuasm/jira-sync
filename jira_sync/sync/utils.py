@@ -64,6 +64,23 @@ def task_for_issue_key(issue_key):
     return frappe.db.get_value("Task", {"jira_issue_key": issue_key}, "name")
 
 
+def user_for_jira_assignee(assignee):
+    """ERPNext User matching a Jira assignee dict, by email address.
+
+    Returns None when the assignee has no visible email (Jira privacy
+    settings) or no enabled ERPNext user shares that email.
+    """
+    email = ((assignee or {}).get("emailAddress") or "").strip().lower()
+    if not email:
+        return None
+    return frappe.db.get_value("User", {"email": email, "enabled": 1}, "name")
+
+
+def task_assignees(task_name):
+    """Current assignment list (_assign) of a Task, as a list of user names."""
+    return frappe.parse_json(frappe.db.get_value("Task", task_name, "_assign") or "[]")
+
+
 def task_status_for_jira_status(jira_status):
     s = get_settings()
     for row in s.status_mappings or []:

@@ -22,6 +22,11 @@ doc_events = {
         "on_update": "jira_sync.sync.outbound.task_on_update",
         "on_trash": "jira_sync.sync.outbound.task_on_trash",
     },
+    "ToDo": {
+        "after_insert": "jira_sync.sync.outbound.todo_after_insert",
+        "on_update": "jira_sync.sync.outbound.todo_on_update",
+        "on_trash": "jira_sync.sync.outbound.todo_on_trash",
+    },
     "Timesheet": {
         "on_submit": "jira_sync.sync.outbound.timesheet_on_submit",
         "on_cancel": "jira_sync.sync.outbound.timesheet_on_cancel",

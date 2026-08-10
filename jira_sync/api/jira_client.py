@@ -41,6 +41,22 @@ class JiraClient:
     def delete(self, path):
         return self.request("DELETE", path)
 
+    # -- projects --------------------------------------------------------------
+    def get_projects(self):
+        """All live Jira projects visible to the integration account."""
+        projects, start = [], 0
+        while True:
+            page = self.get(
+                "/rest/api/3/project/search",
+                params={"startAt": start, "maxResults": 50, "status": "live"},
+            )
+            values = page.get("values", [])
+            projects.extend(values)
+            if page.get("isLast") or not values:
+                break
+            start += len(values)
+        return projects
+
     # -- issues --------------------------------------------------------------
     def create_issue(self, project_key, summary, description=None, issue_type=None):
         payload = {
@@ -76,12 +92,48 @@ class JiraClient:
     def search_issues(self, jql, fields=None, next_page_token=None, max_results=100):
         payload = {
             "jql": jql,
-            "fields": fields or ["summary", "description", "status", "updated", "project"],
+            "fields": fields
+            or ["summary", "description", "status", "updated", "project", "assignee"],
             "maxResults": max_results,
         }
         if next_page_token:
             payload["nextPageToken"] = next_page_token
         return self.post("/rest/api/3/search/jql", payload)
+
+    def assign_issue(self, issue_key, account_id):
+        """Set (or clear, with account_id=None) the assignee of an issue."""
+        return self.put(f"/rest/api/3/issue/{issue_key}/assignee", {"accountId": account_id})
+
+    # -- users -----------------------------------------------------------------
+    def get_account_id_for_email(self, email):
+        """Resolve a Jira accountId from an email address (cached for a day).
+
+        User search matches the email even when the profile hides it, so this
+        works regardless of the user's email visibility setting.
+        """
+        if not email:
+            return None
+        cache_key = f"jira_sync::account_id::{email.lower()}"
+        cached = frappe.cache().get_value(cache_key)
+        if cached:
+            return cached
+        users = self.get("/rest/api/3/user/search", params={"query": email}) or []
+        candidates = [
+            u
+            for u in users
+            if u.get("active", True) and u.get("accountType", "atlassian") == "atlassian"
+        ]
+        account_id = None
+        for u in candidates:
+            if (u.get("emailAddress") or "").lower() == email.lower():
+                account_id = u.get("accountId")
+                break
+        if not account_id and len(candidates) == 1:
+            # email hidden by privacy settings, but the query matched exactly one user
+            account_id = candidates[0].get("accountId")
+        if account_id:
+            frappe.cache().set_value(cache_key, account_id, expires_in_sec=24 * 60 * 60)
+        return account_id
 
     # -- comments --------------------------------------------------------------
     def add_comment(self, issue_key, text):

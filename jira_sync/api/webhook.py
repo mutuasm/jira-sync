@@ -112,6 +112,38 @@ def handle_issue_upsert(payload):
         doc.flags.ignore_permissions = True
         doc.insert()
 
+    apply_assignee(doc.name, fields)
+
+
+def apply_assignee(task_name, fields):
+    """Mirror the Jira assignee (matched by email) onto the Task's assignment."""
+    if "assignee" not in fields:
+        return
+    from frappe.desk.form.assign_to import add, remove
+
+    assignee = fields.get("assignee")
+    current = utils.task_assignees(task_name)
+    if assignee:
+        user = utils.user_for_jira_assignee(assignee)
+        if not user:
+            return  # email hidden in Jira, or no matching enabled ERPNext user
+        for other in current:
+            if other != user:
+                remove("Task", task_name, other, ignore_permissions=True)
+        if user not in current:
+            add(
+                {
+                    "assign_to": [user],
+                    "doctype": "Task",
+                    "name": task_name,
+                    "description": "Assigned in Jira",
+                },
+                ignore_permissions=True,
+            )
+    else:
+        for user in current:
+            remove("Task", task_name, user, ignore_permissions=True)
+
 
 def handle_issue_deleted(payload):
     if not utils.sync_enabled("sync_tasks"):

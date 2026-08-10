@@ -35,6 +35,7 @@ def pull_recent_updates():
 
 
 def full_reconcile():
+    pull_projects()
     if not utils.sync_enabled("sync_tasks"):
         return
     keys = _mapped_project_keys()
@@ -42,6 +43,48 @@ def full_reconcile():
         return
     jql = f"project in ({', '.join(keys)}) ORDER BY updated ASC"
     _pull(jql)
+
+
+def pull_projects():
+    """Create ERPNext Projects for Jira projects that aren't mapped yet."""
+    if not utils.sync_enabled("sync_projects"):
+        return
+    client = JiraClient()
+    for proj in client.get_projects():
+        key = proj.get("key")
+        if not key or utils.project_for_jira_key(key):
+            continue
+        try:
+            with utils.inbound_sync():
+                _adopt_or_create_project(key, proj.get("name") or key)
+            frappe.db.commit()
+        except Exception:
+            frappe.db.rollback()
+            frappe.log_error(title=f"Jira project pull failed: {key}")
+
+
+def _adopt_or_create_project(key, name):
+    """Link an existing same-named unmapped Project, or create a new one."""
+    existing = frappe.db.get_value(
+        "Project", {"project_name": name}, ["name", "jira_project_key"], as_dict=True
+    )
+    if existing and not existing.jira_project_key:
+        frappe.db.set_value(
+            "Project", existing.name, "jira_project_key", key, update_modified=False
+        )
+        return existing.name
+    doc = frappe.get_doc(
+        {
+            "doctype": "Project",
+            # a same-named project already mapped to another Jira key needs a distinct name
+            "project_name": name if not existing else f"{name} ({key})",
+            "jira_project_key": key,
+            "status": "Open",
+        }
+    )
+    doc.flags.ignore_permissions = True
+    doc.insert()
+    return doc.name
 
 
 def _pull(jql):
