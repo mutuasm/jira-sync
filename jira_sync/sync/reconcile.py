@@ -46,21 +46,20 @@ def full_reconcile():
 
 def _pull(jql):
     client = JiraClient()
-    start = 0
+    next_page_token = None
     while True:
-        result = client.search_issues(jql, start_at=start)
+        result = client.search_issues(jql, next_page_token=next_page_token)
         issues = result.get("issues", [])
-        if not issues:
-            break
-        with utils.inbound_sync():
-            for issue in issues:
-                try:
-                    handle_issue_upsert({"issue": issue})
-                except Exception:
-                    frappe.log_error(
-                        title=f"Reconcile failed for {issue.get('key')}"
-                    )
-        frappe.db.commit()
-        start += len(issues)
-        if start >= result.get("total", 0):
+        if issues:
+            with utils.inbound_sync():
+                for issue in issues:
+                    try:
+                        handle_issue_upsert({"issue": issue})
+                    except Exception:
+                        frappe.log_error(
+                            title=f"Reconcile failed for {issue.get('key')}"
+                        )
+            frappe.db.commit()
+        next_page_token = result.get("nextPageToken")
+        if not next_page_token:
             break

@@ -73,16 +73,15 @@ class JiraClient:
                 return True
         return False
 
-    def search_issues(self, jql, fields=None, start_at=0, max_results=100):
-        return self.post(
-            "/rest/api/3/search",
-            {
-                "jql": jql,
-                "fields": fields or ["summary", "description", "status", "updated", "project"],
-                "startAt": start_at,
-                "maxResults": max_results,
-            },
-        )
+    def search_issues(self, jql, fields=None, next_page_token=None, max_results=100):
+        payload = {
+            "jql": jql,
+            "fields": fields or ["summary", "description", "status", "updated", "project"],
+            "maxResults": max_results,
+        }
+        if next_page_token:
+            payload["nextPageToken"] = next_page_token
+        return self.post("/rest/api/3/search/jql", payload)
 
     # -- comments --------------------------------------------------------------
     def add_comment(self, issue_key, text):
