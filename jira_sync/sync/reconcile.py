@@ -46,21 +46,45 @@ def full_reconcile():
 
 
 def pull_projects():
-    """Create ERPNext Projects for Jira projects that aren't mapped yet."""
+    """Create ERPNext Projects for unmapped Jira projects and register them
+    in the settings mapping table so their tasks sync."""
     if not utils.sync_enabled("sync_projects"):
         return
     client = JiraClient()
+    settings = frappe.get_doc("Jira Sync Settings")
+    mapped_keys = {
+        (row.jira_project_key or "").upper() for row in settings.project_mappings or []
+    }
+    mappings_changed = False
     for proj in client.get_projects():
         key = proj.get("key")
-        if not key or utils.project_for_jira_key(key):
+        if not key:
             continue
-        try:
-            with utils.inbound_sync():
-                _adopt_or_create_project(key, proj.get("name") or key)
-            frappe.db.commit()
-        except Exception:
-            frappe.db.rollback()
-            frappe.log_error(title=f"Jira project pull failed: {key}")
+        erp_project = utils.project_for_jira_key(key)
+        if not erp_project:
+            try:
+                with utils.inbound_sync():
+                    erp_project = _adopt_or_create_project(key, proj.get("name") or key)
+                frappe.db.commit()
+            except Exception:
+                frappe.db.rollback()
+                frappe.log_error(title=f"Jira project pull failed: {key}")
+                continue
+        if key.upper() not in mapped_keys:
+            settings.append(
+                "project_mappings",
+                {
+                    "erpnext_project": erp_project,
+                    "jira_project_key": key,
+                    "jira_project_id": proj.get("id"),
+                },
+            )
+            mapped_keys.add(key.upper())
+            mappings_changed = True
+    if mappings_changed:
+        settings.flags.ignore_permissions = True
+        settings.save()
+        frappe.db.commit()
 
 
 def _adopt_or_create_project(key, name):

@@ -65,15 +65,52 @@ def task_for_issue_key(issue_key):
 
 
 def user_for_jira_assignee(assignee):
-    """ERPNext User matching a Jira assignee dict, by email address.
+    """ERPNext User matching a Jira assignee dict.
 
-    Returns None when the assignee has no visible email (Jira privacy
-    settings) or no enabled ERPNext user shares that email.
+    Match by email when Jira exposes it. Most Atlassian profiles hide the
+    email from API responses, so fall back to a reverse lookup: resolve each
+    enabled ERPNext user's email to a Jira accountId (user search matches
+    hidden emails too) and compare against the assignee's accountId.
     """
-    email = ((assignee or {}).get("emailAddress") or "").strip().lower()
-    if not email:
+    assignee = assignee or {}
+    email = (assignee.get("emailAddress") or "").strip().lower()
+    if email:
+        return frappe.db.get_value("User", {"email": email, "enabled": 1}, "name")
+
+    account_id = assignee.get("accountId")
+    if not account_id:
         return None
-    return frappe.db.get_value("User", {"email": email, "enabled": 1}, "name")
+    cache_key = f"jira_sync::user_for_account::{account_id}"
+    cached = frappe.cache().get_value(cache_key)
+    if cached is not None:
+        return cached or None  # "" caches a known-unmapped account
+
+    from jira_sync.api.jira_client import JiraClient
+
+    client = JiraClient()
+    user = None
+    for u in frappe.get_all(
+        "User",
+        filters={"enabled": 1, "user_type": "System User"},
+        fields=["name", "email"],
+    ):
+        try:
+            if u.email and client.get_account_id_for_email(u.email) == account_id:
+                user = u.name
+                break
+        except Exception:
+            frappe.log_error(title=f"Jira user lookup failed for {u.email}")
+    frappe.cache().set_value(cache_key, user or "", expires_in_sec=6 * 60 * 60)
+    if not user:
+        frappe.log_error(
+            title=f"Jira assignee not mapped: {assignee.get('displayName') or account_id}",
+            message=(
+                f"No enabled ERPNext user matches Jira account {account_id}. "
+                "Create or enable a User whose email matches their Atlassian "
+                "account email, then re-run the reconcile."
+            ),
+        )
+    return user
 
 
 def task_assignees(task_name):
